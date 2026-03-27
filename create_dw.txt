@@ -1,0 +1,136 @@
+CREATE SCHEMA IF NOT EXISTS schema_dw;
+
+-- =====================================================
+-- DIMENSÃO DATA (SCD TIPO 0)
+-- =====================================================
+CREATE TABLE schema_dw.dim_data (
+    sk_data                  INT PRIMARY KEY,
+    data_completa            DATE NOT NULL UNIQUE,
+    dia                      INT NOT NULL,
+    mes                      INT NOT NULL,
+    nome_mes                 VARCHAR(20) NOT NULL,
+    trimestre                INT NOT NULL,
+    semestre                 INT NOT NULL,
+    ano                      INT NOT NULL,
+    dia_semana               INT NOT NULL,
+    nome_dia_semana          VARCHAR(20) NOT NULL,
+    flag_final_semana        CHAR(1) NOT NULL,
+    CONSTRAINT ck_dim_data_final_semana CHECK (flag_final_semana IN ('S', 'N'))
+);
+
+-- =====================================================
+-- DIMENSÃO PASSAGEIRO (SCD TIPO 1)
+-- =====================================================
+CREATE TABLE schema_dw.dim_passageiro (
+    sk_passageiro            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_passageiro_nk         INT NOT NULL,
+    nome_completo            VARCHAR(150) NOT NULL,
+    email                    VARCHAR(150),
+    telefone                 VARCHAR(30),
+    tipo_documento           VARCHAR(30),
+    numero_documento         VARCHAR(50)
+);
+
+-- =====================================================
+-- DIMENSÃO TARIFA (SCD TIPO 2)
+-- =====================================================
+CREATE TABLE schema_dw.dim_tarifa (
+    sk_tarifa                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_regra_tarifa_nk       INT NOT NULL,
+    classe_tarifaria         VARCHAR(50) NOT NULL,
+    antecedencia_minima_dias INT,
+    multiplicador_preco      DECIMAL(10,2),
+    data_inicio              DATE NOT NULL,
+    data_fim                 DATE,
+    flag_ativo               CHAR(1) NOT NULL,
+    CONSTRAINT ck_dim_tarifa_flag_ativo CHECK (flag_ativo IN ('S', 'N'))
+);
+
+-- =====================================================
+-- DIMENSÃO VOO
+-- =====================================================
+CREATE TABLE schema_dw.dim_voo (
+    sk_voo                   BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_voo_instancia_nk      INT NOT NULL,
+    id_rota_nk               INT NOT NULL,
+    id_aeronave_nk           INT NOT NULL,
+    id_modelo_nk             INT NOT NULL,
+    aeroporto_origem         VARCHAR(10) NOT NULL,
+    aeroporto_destino        VARCHAR(10) NOT NULL,
+    distancia_km             INT,
+    prefixo_aeronave         VARCHAR(20),
+    ano_fabricacao           INT,
+    fabricante               VARCHAR(100),
+    nome_modelo              VARCHAR(100),
+    capacidade_maxima        INT,
+    horario_partida_previsto TIMESTAMP,
+    horario_chegada_previsto TIMESTAMP
+);
+
+-- =====================================================
+-- DIMENSÃO ASSENTO
+-- =====================================================
+CREATE TABLE schema_dw.dim_assento (
+    sk_assento               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_assento_nk            INT NOT NULL,
+    id_modelo_nk             INT NOT NULL,
+    numero_poltrona          VARCHAR(10) NOT NULL,
+    classe_assento           VARCHAR(30) NOT NULL
+);
+
+-- =====================================================
+-- DIMENSÃO RESERVA
+-- =====================================================
+CREATE TABLE schema_dw.dim_reserva (
+    sk_reserva               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_reserva_nk            INT NOT NULL,
+    localizador              VARCHAR(20) NOT NULL,
+    status_pagamento         VARCHAR(30) NOT NULL,
+    data_reserva_original    DATE
+);
+
+-- =====================================================
+-- TABELA FATO
+-- GRÃO: 1 linha por bilhete emitido para um passageiro
+-- em um voo instância
+-- =====================================================
+CREATE TABLE schema_dw.fato_bilhete (
+    sk_fato_bilhete          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    sk_data_reserva          INT NOT NULL,
+    sk_data_voo              INT NOT NULL,
+    sk_passageiro            BIGINT NOT NULL,
+    sk_tarifa                BIGINT NOT NULL,
+    sk_voo                   BIGINT NOT NULL,
+    sk_assento               BIGINT NOT NULL,
+    sk_reserva               BIGINT NOT NULL,
+
+    id_bilhete_nk            INT NOT NULL,
+
+    quantidade_bilhetes      INT NOT NULL DEFAULT 1,
+    valor_final              DECIMAL(12,2) NOT NULL,
+    ocupacao_assento_flag    CHAR(1) NOT NULL DEFAULT 'S',
+
+    CONSTRAINT fk_fato_bilhete_data_reserva
+        FOREIGN KEY (sk_data_reserva) REFERENCES schema_dw.dim_data(sk_data),
+
+    CONSTRAINT fk_fato_bilhete_data_voo
+        FOREIGN KEY (sk_data_voo) REFERENCES schema_dw.dim_data(sk_data),
+
+    CONSTRAINT fk_fato_bilhete_passageiro
+        FOREIGN KEY (sk_passageiro) REFERENCES schema_dw.dim_passageiro(sk_passageiro),
+
+    CONSTRAINT fk_fato_bilhete_tarifa
+        FOREIGN KEY (sk_tarifa) REFERENCES schema_dw.dim_tarifa(sk_tarifa),
+
+    CONSTRAINT fk_fato_bilhete_voo
+        FOREIGN KEY (sk_voo) REFERENCES schema_dw.dim_voo(sk_voo),
+
+    CONSTRAINT fk_fato_bilhete_assento
+        FOREIGN KEY (sk_assento) REFERENCES schema_dw.dim_assento(sk_assento),
+
+    CONSTRAINT fk_fato_bilhete_reserva
+        FOREIGN KEY (sk_reserva) REFERENCES schema_dw.dim_reserva(sk_reserva),
+
+    CONSTRAINT ck_fato_bilhete_ocupacao CHECK (ocupacao_assento_flag IN ('S', 'N'))
+);
