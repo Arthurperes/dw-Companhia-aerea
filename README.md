@@ -89,6 +89,7 @@ CREATE SCHEMA schema_dw;
 Rodar o arquivo:
 create_dw.sql
 Utilizar o modelo para análises de BI
+
 📈 Possíveis Análises
 Receita por período
 Receita por rota
@@ -96,10 +97,12 @@ Taxa de ocupação
 Ticket médio por cliente
 Impacto de mudanças de tarifa
 🛠️ Tecnologias
+
 SQL
 Modelagem Dimensional
 Data Warehouse
 Star Schema
+
 👨‍💻 Autor
 
 Arthur Peres
